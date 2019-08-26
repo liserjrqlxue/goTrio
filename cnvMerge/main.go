@@ -98,7 +98,7 @@ func main() {
 			}
 			for j := util.Max(i+1, len1); j < len2; j++ {
 				cnv2 := CNVpool[i]
-				if cnv2.skip || cnv2.rank > 1 {
+				if cnv2.skip {
 					continue
 				}
 				if checkOverlap(cnv1, cnv2) {

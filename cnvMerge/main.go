@@ -97,7 +97,7 @@ func main() {
 				continue
 			}
 			for j := util.Max(i+1, len1); j < len2; j++ {
-				cnv2 := CNVpool[i]
+				cnv2 := CNVpool[j]
 				if cnv2.skip {
 					continue
 				}
@@ -152,12 +152,14 @@ func mergeCNVs(cnv1, cnv2 *CNV) *CNV {
 	start := util.Min(cnv1.start, cnv2.start)
 	end := util.Max(cnv1.end, cnv2.end)
 	hitTag := cnv1.hitTag | cnv2.hitTag
+	rank := util.Max(cnv1.rank, cnv2.rank) + 1
 	cnv := CNV{
 		chromosome: chr,
 		start:      start,
 		end:        end,
 		len:        float64(end - start),
 		hitTag:     hitTag,
+		rank:       rank,
 		detail:     cnv1.detail + "\n" + cnv2.detail,
 	}
 	cnv1.mergeTo = &cnv

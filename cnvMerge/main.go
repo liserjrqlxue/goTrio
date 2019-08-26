@@ -137,14 +137,19 @@ func main() {
 		liteRow.AddCell().SetString(title)
 	}
 	for _, cnv := range CNVpool {
-		_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t%d\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.mergeTo.id, cnv.detail)
-		simple_util.CheckErr(err)
-		row := allSheet.AddRow()
-		addCnvRow(cnv, row)
 		if !cnv.skip {
-			_, err = fmt.Fprintf(lite, "%d\t%s\t%d\t%d\t%03b\t%d\t%d\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.mergeTo.id, cnv.detail)
+			_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.detail)
 			simple_util.CheckErr(err)
-			row := liteSheet.AddRow()
+			row := allSheet.AddRow()
+			addCnvRow(cnv, row)
+			_, err = fmt.Fprintf(lite, "%d\t%s\t%d\t%d\t%03b\t%d\t\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.detail)
+			simple_util.CheckErr(err)
+			row = liteSheet.AddRow()
+			addCnvRow(cnv, row)
+		} else {
+			_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t%d\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.mergeTo.id, cnv.detail)
+			simple_util.CheckErr(err)
+			row := allSheet.AddRow()
 			addCnvRow(cnv, row)
 		}
 	}
@@ -159,7 +164,12 @@ func addCnvRow(cnv *CNV, row *xlsx.Row) {
 	row.AddCell().SetInt(cnv.end)
 	row.AddCell().SetString(fmt.Sprintf("%03b", cnv.hitTag))
 	row.AddCell().SetInt(cnv.rank)
-	row.AddCell().SetInt(cnv.mergeTo.id)
+	if cnv.mergeTo != nil {
+		row.AddCell().SetInt(cnv.mergeTo.id)
+	} else {
+		row.AddCell().SetString("")
+	}
+
 	row.AddCell().SetString(strings.Replace(cnv.detail, "<br>", "\t", -1))
 }
 

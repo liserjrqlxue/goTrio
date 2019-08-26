@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/biogo/biogo/util"
 	"github.com/liserjrqlxue/simple-util"
+	"github.com/tealeg/xlsx"
 	"log"
 	"os"
 	"strconv"
@@ -32,7 +33,7 @@ func newCNV(id, hitTag, rank int, bed []string) *CNV {
 		end:        end,
 		len:        float64(end - start),
 		hitTag:     hitTag,
-		detail:     fmt.Sprintf("%03b:%s", hitTag, strings.Join(bed, "-")),
+		detail:     fmt.Sprintf("%03b\t%s", hitTag, strings.Join(bed, "\t")),
 	}
 	return &cnv
 }
@@ -58,11 +59,16 @@ var (
 		0.8,
 		"overlape rate",
 	)
+	prefix = flag.String(
+		"prefix",
+		"",
+		"prefix of output",
+	)
 )
 
 func main() {
 	flag.Parse()
-	if *proband == "" || *father == "" || *mother == "" {
+	if *proband == "" || *father == "" || *mother == "" || *prefix == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -115,9 +121,46 @@ func main() {
 		}
 		len1 = len2
 	}
-	for _, cnv := range CNVpool {
-		fmt.Printf("%+v", cnv)
+	all, err := os.Create(*prefix + ".all.tsv")
+	simple_util.CheckErr(err)
+	lite, err := os.Create(*prefix + ".tsv")
+	simple_util.CheckErr(err)
+	allXlsx := xlsx.NewFile()
+	allSheet, err := allXlsx.AddSheet("all")
+	simple_util.CheckErr(err)
+	liteSheet, err := allXlsx.AddSheet("lite")
+	simple_util.CheckErr(err)
+	allRow := allSheet.AddRow()
+	liteRow := liteSheet.AddRow()
+	for _, title := range []string{"ID", "Chromosome", "Start", "End", "HitTag", "Rank", "mergeTo", "Detail"} {
+		allRow.AddCell().SetString(title)
+		liteRow.AddCell().SetString(title)
 	}
+	for _, cnv := range CNVpool {
+		_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t%d\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.mergeTo.id, cnv.detail)
+		simple_util.CheckErr(err)
+		row := allSheet.AddRow()
+		addCnvRow(cnv, row)
+		if !cnv.skip {
+			_, err = fmt.Fprintf(lite, "%d\t%s\t%d\t%d\t%03b\t%d\t%d\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.mergeTo.id, cnv.detail)
+			simple_util.CheckErr(err)
+			row := liteSheet.AddRow()
+			addCnvRow(cnv, row)
+		}
+	}
+	err = allXlsx.Save(*prefix + ".xlsx")
+	simple_util.CheckErr(err)
+}
+
+func addCnvRow(cnv *CNV, row *xlsx.Row) {
+	row.AddCell().SetInt(cnv.id)
+	row.AddCell().SetString(cnv.chromosome)
+	row.AddCell().SetInt(cnv.start)
+	row.AddCell().SetInt(cnv.end)
+	row.AddCell().SetString(fmt.Sprintf("%03b", cnv.hitTag))
+	row.AddCell().SetInt(cnv.rank)
+	row.AddCell().SetInt(cnv.mergeTo.id)
+	row.AddCell().SetString(strings.Replace(cnv.detail, "<br>", "\t", -1))
 }
 
 func bed2region(bed []string) (chr string, start, end int) {
@@ -160,7 +203,7 @@ func mergeCNVs(cnv1, cnv2 *CNV) *CNV {
 		len:        float64(end - start),
 		hitTag:     hitTag,
 		rank:       rank,
-		detail:     cnv1.detail + "\n" + cnv2.detail,
+		detail:     cnv1.detail + "<br>" + cnv2.detail,
 	}
 	cnv1.mergeTo = &cnv
 	cnv2.mergeTo = &cnv

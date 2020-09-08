@@ -19,7 +19,7 @@ type CNV struct {
 	len        float64
 	hitTag     int
 	mergeTo    *CNV
-	detail     string
+	detail     [][]string
 	skip       bool
 	rank       int
 }
@@ -33,7 +33,7 @@ func newCNV(id, hitTag, rank int, bed []string) *CNV {
 		end:        end,
 		len:        float64(end - start),
 		hitTag:     hitTag,
-		detail:     fmt.Sprintf("%03b\t%s", hitTag, strings.Join(bed, "\t")),
+		detail:     [][]string{append(bed, fmt.Sprintf("%03b", hitTag))},
 	}
 	return &cnv
 }
@@ -98,12 +98,12 @@ func main() {
 		len2 = len(CNVpool)
 		log.Printf("loop:%d->%d\n", len1, len2)
 		for i := 0; i < len2; i++ {
-			cnv1 := CNVpool[i]
+			var cnv1 = CNVpool[i]
 			if cnv1.skip {
 				continue
 			}
 			for j := util.Max(i+1, len1); j < len2; j++ {
-				cnv2 := CNVpool[j]
+				var cnv2 = CNVpool[j]
 				if cnv2.skip {
 					continue
 				}
@@ -138,16 +138,16 @@ func main() {
 	}
 	for _, cnv := range CNVpool {
 		if !cnv.skip {
-			_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.detail)
+			_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, slice2string(cnv.detail, ";"))
 			simple_util.CheckErr(err)
 			row := allSheet.AddRow()
 			addCnvRow(cnv, row)
-			_, err = fmt.Fprintf(lite, "%d\t%s\t%d\t%d\t%03b\t%d\t\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.detail)
+			_, err = fmt.Fprintf(lite, "%d\t%s\t%d\t%d\t%03b\t%d\t\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, slice2string(cnv.detail, ";"))
 			simple_util.CheckErr(err)
 			row = liteSheet.AddRow()
 			addCnvRow(cnv, row)
 		} else {
-			_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t%d\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.mergeTo.id, cnv.detail)
+			_, err = fmt.Fprintf(all, "%d\t%s\t%d\t%d\t%03b\t%d\t%d\t%s\n", cnv.id, cnv.chromosome, cnv.start, cnv.end, cnv.hitTag, cnv.rank, cnv.mergeTo.id, slice2string(cnv.detail, ";"))
 			simple_util.CheckErr(err)
 			row := allSheet.AddRow()
 			addCnvRow(cnv, row)
@@ -170,7 +170,15 @@ func addCnvRow(cnv *CNV, row *xlsx.Row) {
 		row.AddCell().SetString("")
 	}
 
-	row.AddCell().SetString(strings.Replace(cnv.detail, "<br>", "\t", -1))
+	row.AddCell().SetString(slice2string(cnv.detail, "\n"))
+}
+
+func slice2string(slice [][]string, sep string) string {
+	var array []string
+	for _, a := range slice {
+		array = append(array, strings.Join(a, " "))
+	}
+	return strings.Join(array, sep)
 }
 
 func bed2region(bed []string) (chr string, start, end int) {
@@ -213,7 +221,7 @@ func mergeCNVs(cnv1, cnv2 *CNV) *CNV {
 		len:        float64(end - start),
 		hitTag:     hitTag,
 		rank:       rank,
-		detail:     cnv1.detail + "<br>" + cnv2.detail,
+		detail:     append(cnv1.detail, cnv2.detail...),
 	}
 	cnv1.mergeTo = &cnv
 	cnv2.mergeTo = &cnv

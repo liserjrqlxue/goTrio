@@ -52,7 +52,7 @@ var (
 	mother = flag.String(
 		"001",
 		"",
-		"proband input bed",
+		"mother input bed",
 	)
 	overlapRate = flag.Float64(
 		"overlapRate",
